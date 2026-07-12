@@ -13,7 +13,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: kwaaac/tarpin-bot
+  IMAGE_NAME: tarpin-corp/tarpin-bot
 
 jobs:
   deploy:
@@ -50,6 +50,6 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
           script: |
-            cd /home/tarpin/tarpin
+            cd /home/${{secrets.SERVER_USER}}/${{secrets.SERVER_USER}}
             docker compose pull
             docker compose up -d
