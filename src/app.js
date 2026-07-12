@@ -19,13 +19,8 @@ client.once(Events.ClientReady, (readyClient) => {
 });
 
 client.on(Events.MessageCreate, (message) => {
-	try {
-		listener(message, client);
-	}
-	catch (e) {
-		console.error(`Message handle error: ${e}`);
-		console.error(`Message received: ${message}`);
-	}
+	listener(message, client)
+		.catch(console.error);
 });
 
 client.login(process.env.TOKEN);

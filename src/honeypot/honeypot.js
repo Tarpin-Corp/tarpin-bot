@@ -1,8 +1,10 @@
+import { Message } from 'discord.js';
+
 /**
- * @typedef {{kicked: Snowflake, timestamp: number}} KickedMember
+ * @typedef {{kicked: string, timestamp: number}} KickedMember
  */
 
-/** @type {Map<Snowflake, Array<Message>>} */
+/** @type {Map<string, Array<Message>>} */
 const messageCache = new Map();
 
 /** @type {Array<KickedMember>} */
@@ -32,17 +34,18 @@ function clearKicked() {
 
 /**
  * Utility function that delete the message from the messageCache
- * @param authorId {Snowflake} Id of the author
+ * @param authorId {string} Id of the author
  * @param message {Message} message to delete
  */
 function deleteMessage(authorId, message) {
-	message.delete();
-	messageCache.get(authorId).splice(messageCache.indexOf(message), 1);
+	message.delete().catch(e => console.error(`Échec de la suppression du message ${e}`));
+	const messages = messageCache.get(authorId);
+	messages.splice(messages.indexOf(message), 1);
 }
 
 /**
  * Add a message to the author into the message cache
- * @param authorId {Snowflake} Id of the author
+ * @param authorId {string} Id of the author
  * @param message {Message} message to add
  */
 function addMessage(authorId, message) {
@@ -54,7 +57,7 @@ function addMessage(authorId, message) {
 
 /**
  * Listener for the honeypot functionality
- * @param message {Message} Message to be handled
+ * @param message {Message<boolean> & {channel: Exclude<Message<boolean>["channel"], PartialGroupDMChannel>}} Message to be handled
  * @param client {Client} Bot
  */
 const listener = async (message, client) => {
@@ -88,7 +91,8 @@ const listener = async (message, client) => {
 	if (message.author.id === client.user.id || scammerMember.roles.cache.has(process.env.IMMUNITY_ROLE)) return;
 
 	// Kick && delete all messages from the user from the cache
-	scammerMember.kick('Tu as envoyé un message dans un channel destiné aux scams');
+	scammerMember.kick('Tu as envoyé un message dans un channel destiné aux scams')
+		.catch(e => console.error(`Échec de l'expultion de ${message.author}: ${e}`));
 	kickedMembers.push({ kicked: message.author.id, timestamp: Date.now() });
 
 	[...messageCache.get(authorId)]
