@@ -1,5 +1,3 @@
-import { Message } from 'discord.js';
-
 /**
  * @typedef {{kicked: string, timestamp: number}} KickedMember
  */
