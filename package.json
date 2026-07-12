@@ -11,18 +11,22 @@
   "scripts": {
     "start": "node src/app.js",
     "register": "node src/commands.js",
-    "dev": "nodemon src/app.js"
+    "dev": "nodemon src/app.js",
+    "lint": "eslint . --ext .js",
+    "lint-fix": "eslint . --ext .js --fix"
   },
   "author": "Shay DeWael",
   "license": "MIT",
   "dependencies": {
     "@airjp73/dice-notation": "^2.2.2",
     "discord-interactions": "^4.0.0",
-    "discord.js": "^14.26.5",
+    "discord.js": "^13.17.1",
     "dotenv": "^16.0.3",
     "express": "^4.18.2"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.7.0",
     "nodemon": "^3.0.0"
   }
 }
