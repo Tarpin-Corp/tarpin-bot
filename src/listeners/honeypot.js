@@ -68,8 +68,8 @@ const honeypotListener = async (message, client) => {
 
 	const authorId = message.author.id;
 
-	clearKicked(kickedMembers);
-	clearMessages(message);
+	clearKicked();
+	clearMessages();
 
 	addMessage(authorId, message);
 
