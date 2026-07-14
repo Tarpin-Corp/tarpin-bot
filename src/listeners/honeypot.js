@@ -94,7 +94,7 @@ const honeypotListener = async (message, client) => {
 	// Kick the scammer member and delete all messages from this user from the cache
 	scammerMember.kick('Tu as envoyé un message dans un channel destiné aux scams')
 		.then(() => kickedMembers.push({ id: message.author.id, timestamp: Date.now() }))
-		.catch(e => console.error(`Échec de l'expultion de ${message.author}: ${e}`));
+		.catch(e => console.error(`Échec de l'expulsion de ${message.author}: ${e}`));
 
 
 	[...messageCache.get(authorId)]
