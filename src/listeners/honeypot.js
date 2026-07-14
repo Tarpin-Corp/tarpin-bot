@@ -3,7 +3,7 @@
  */
 
 /** @type {Map<string, Array<Message>>} */
-const messageCache = new Map();
+const messagesCache = new Map();
 
 /** @type {Array<KickedMember>} */
 const kickedMembers = [];
@@ -14,9 +14,9 @@ const CACHE_TIME_THRESHOLD = 5 * 60_000;
  * Function that clear messages from the cache that are older than the cache time threshold
  */
 function clearMessages() {
-	for (const messages of messageCache.values()) {
-		while (messages.length && messages[0].createdTimestamp < CACHE_TIME_THRESHOLD) {
-			messages.shift();
+	for (const memberMessages of messagesCache.values()) {
+		while (memberMessages.length && memberMessages[0].createdTimestamp < CACHE_TIME_THRESHOLD) {
+			memberMessages.shift();
 		}
 	}
 }
@@ -38,7 +38,7 @@ function clearKicked() {
 function deleteMessage(authorId, message) {
 	message.delete()
 		.then(() => {
-			const messages = messageCache.get(authorId);
+			const messages = messagesCache.get(authorId);
 			messages.splice(messages.indexOf(message), 1);
 		})
 		.catch(e => console.error(`Échec de la suppression du message ${e}`));
@@ -50,10 +50,10 @@ function deleteMessage(authorId, message) {
  * @param message {Message} message to add
  */
 function addMessage(authorId, message) {
-	if (!messageCache.has(authorId)) {
-		messageCache.set(authorId, []);
+	if (!messagesCache.has(authorId)) {
+		messagesCache.set(authorId, []);
 	}
-	messageCache.get(authorId).push(message);
+	messagesCache.get(authorId).push(message);
 }
 
 /**
@@ -78,7 +78,7 @@ const honeypotListener = async (message, client) => {
 	addMessage(authorId, message);
 
 	// If the message is coming from a member that has already been kicked, delete all the user messages stored in the cache
-	[...messageCache.get(authorId)]
+	[...messagesCache.get(authorId)]
 		.filter(() => kickedMembers.some(member => member.id === authorId))
 		.forEach(msg => deleteMessage(authorId, msg));
 
@@ -101,7 +101,7 @@ const honeypotListener = async (message, client) => {
 		.catch(e => console.error(`Échec de l'expulsion de ${message.author}: ${e}`));
 
 
-	[...messageCache.get(authorId)]
+	[...messagesCache.get(authorId)]
 		.forEach((msg) => deleteMessage(authorId, msg));
 };
 
