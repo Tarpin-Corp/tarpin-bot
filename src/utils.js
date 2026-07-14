@@ -36,15 +36,3 @@ export async function InstallGlobalCommands(appId, commands) {
 		console.error(err);
 	}
 }
-
-/**
- * Function that clear messages that are older than 5 minutes
- * @param messages array of messages
- */
-export function clearMessages(messages) {
-    let timer = Date.now() - 300_000;
-
-    while (messages.length && messages[0].createdTimestamp < timer) {
-        messages.shift();
-    }
-}
