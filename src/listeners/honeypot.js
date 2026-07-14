@@ -66,16 +66,20 @@ const honeypotListener = async (message, client) => {
 	// Guard cause for DM
 	if (!message.inGuild()) return;
 
-	const authorId = message.author.id;
-
 	clearKicked();
 	clearMessages();
+
+
+	const authorId = message.author.id;
+
+	// Guard cause for the bot itself
+	if (authorId === client.user.id) return;
 
 	addMessage(authorId, message);
 
 	// If the message is coming from a member that has already been kicked, delete all the user messages stored in the cache
 	[...messageCache.get(authorId)]
-		.filter(() => kickedMembers.some(member => member.id === message.author.id))
+		.filter(() => kickedMembers.some(member => member.id === authorId))
 		.forEach(msg => deleteMessage(authorId, msg));
 
 	// Guard cause for the honeypot channel
@@ -88,12 +92,12 @@ const honeypotListener = async (message, client) => {
 		return;
 	}
 
-	// Guard cause for the bot itself or for user with the immunity role
-	if (message.author.id === client.user.id || scammerMember.roles.cache.has(process.env.IMMUNITY_ROLE)) return;
+	// Guard cause for user with the immunity role
+	if (scammerMember.roles.cache.has(process.env.IMMUNITY_ROLE)) return;
 
 	// Kick the scammer member and delete all messages from this user from the cache
 	scammerMember.kick('Tu as envoyé un message dans un channel destiné aux scams')
-		.then(() => kickedMembers.push({ id: message.author.id, timestamp: Date.now() }))
+		.then(() => kickedMembers.push({ id: authorId, timestamp: Date.now() }))
 		.catch(e => console.error(`Échec de l'expulsion de ${message.author}: ${e}`));
 
 
