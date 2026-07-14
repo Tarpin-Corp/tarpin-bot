@@ -1,7 +1,7 @@
 import 'dotenv/config';
 
 import { Client, Events, GatewayIntentBits } from 'discord.js';
-import listener from './honeypot/honeypot.js';
+import listener from './listeners/honeypot.js';
 
 const client = new Client({
 	intents: [
