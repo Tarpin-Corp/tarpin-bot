@@ -36,9 +36,12 @@ function clearKicked() {
  * @param message {Message} message to delete
  */
 function deleteMessage(authorId, message) {
-	message.delete().catch(e => console.error(`Échec de la suppression du message ${e}`));
-	const messages = messageCache.get(authorId);
-	messages.splice(messages.indexOf(message), 1);
+	message.delete()
+		.then(() => {
+			const messages = messageCache.get(authorId);
+			messages.splice(messages.indexOf(message), 1);
+		})
+		.catch(e => console.error(`Échec de la suppression du message ${e}`));
 }
 
 /**
@@ -90,8 +93,9 @@ const listener = async (message, client) => {
 
 	// Kick the scammer member and delete all messages from this user from the cache
 	scammerMember.kick('Tu as envoyé un message dans un channel destiné aux scams')
+		.then(() => kickedMembers.push({ kicked: message.author.id, timestamp: Date.now() }))
 		.catch(e => console.error(`Échec de l'expultion de ${message.author}: ${e}`));
-	kickedMembers.push({ kicked: message.author.id, timestamp: Date.now() });
+
 
 	[...messageCache.get(authorId)]
 		.forEach((msg) => deleteMessage(authorId, msg));
