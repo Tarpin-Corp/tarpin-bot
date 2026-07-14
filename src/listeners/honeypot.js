@@ -1,5 +1,5 @@
 /**
- * @typedef {{kicked: string, timestamp: number}} KickedMember
+ * @typedef {{id: string, timestamp: number}} KickedMember
  */
 
 /** @type {Map<string, Array<Message>>} */
@@ -7,7 +7,7 @@ const messageCache = new Map();
 
 /** @type {Array<KickedMember>} */
 const kickedMembers = [];
-const timer = 5 * 60_000;
+const CACHE_TIME_THRESHOLD = 5 * 60_000;
 
 
 /**
@@ -15,7 +15,7 @@ const timer = 5 * 60_000;
  */
 function clearMessages() {
 	for (const messages of messageCache.values()) {
-		while (messages.length && messages[0].createdTimestamp < timer) {
+		while (messages.length && messages[0].createdTimestamp < CACHE_TIME_THRESHOLD) {
 			messages.shift();
 		}
 	}
@@ -25,7 +25,7 @@ function clearMessages() {
  * Function that clear KickedMembers from the cache that are older than the cache time threshold
  */
 function clearKicked() {
-	while (kickedMembers.length && kickedMembers[0].timestamp < timer) {
+	while (kickedMembers.length && kickedMembers[0].timestamp < CACHE_TIME_THRESHOLD) {
 		kickedMembers.shift();
 	}
 }
@@ -61,7 +61,7 @@ function addMessage(authorId, message) {
  * @param message {Message<boolean> & {channel: Exclude<Message<boolean>["channel"], PartialGroupDMChannel>}} Message to be handled
  * @param client {Client} Bot
  */
-const listener = async (message, client) => {
+const honeypotListener = async (message, client) => {
 	console.log(`Message "${message.content}" reçu dans ${message.channel.name}`);
 	// Guard cause for DM
 	if (!message.inGuild()) return;
@@ -75,7 +75,7 @@ const listener = async (message, client) => {
 
 	// If the message is coming from a member that has already been kicked, delete all the user messages stored in the cache
 	[...messageCache.get(authorId)]
-		.filter(() => kickedMembers.some(member => member.kicked === message.author.id))
+		.filter(() => kickedMembers.some(member => member.id === message.author.id))
 		.forEach(msg => deleteMessage(authorId, msg));
 
 	// Guard cause for the honeypot channel
@@ -93,7 +93,7 @@ const listener = async (message, client) => {
 
 	// Kick the scammer member and delete all messages from this user from the cache
 	scammerMember.kick('Tu as envoyé un message dans un channel destiné aux scams')
-		.then(() => kickedMembers.push({ kicked: message.author.id, timestamp: Date.now() }))
+		.then(() => kickedMembers.push({ id: message.author.id, timestamp: Date.now() }))
 		.catch(e => console.error(`Échec de l'expultion de ${message.author}: ${e}`));
 
 
@@ -101,4 +101,4 @@ const listener = async (message, client) => {
 		.forEach((msg) => deleteMessage(authorId, msg));
 };
 
-export default listener;
+export default honeypotListener;

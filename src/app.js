@@ -1,7 +1,7 @@
 import 'dotenv/config';
 
 import { Client, Events, GatewayIntentBits } from 'discord.js';
-import listener from './listeners/honeypot.js';
+import honeypotListener from './listeners/honeypot.js';
 
 const client = new Client({
 	intents: [
@@ -19,7 +19,7 @@ client.once(Events.ClientReady, (readyClient) => {
 });
 
 client.on(Events.MessageCreate, (message) => {
-	listener(message, client)
+	honeypotListener(message, client)
 		.catch(console.error);
 });
 
