@@ -11,7 +11,7 @@ const timer = 5 * 60_000;
 
 
 /**
- * Function that clear messages from the cache that are older than 5 minutes
+ * Function that clear messages from the cache that are older than the cache time threshold
  */
 function clearMessages() {
 	for (const messages of messageCache.values()) {
@@ -22,7 +22,7 @@ function clearMessages() {
 }
 
 /**
- * Function that clear messages that are older than 5 minutes
+ * Function that clear KickedMembers from the cache that are older than the cache time threshold
  */
 function clearKicked() {
 	while (kickedMembers.length && kickedMembers[0].timestamp < timer) {
@@ -42,7 +42,7 @@ function deleteMessage(authorId, message) {
 }
 
 /**
- * Add a message to the author into the message cache
+ * Add a message in the message cache for the specified author
  * @param authorId {string} Id of the author
  * @param message {Message} message to add
  */
@@ -70,7 +70,7 @@ const listener = async (message, client) => {
 
 	addMessage(authorId, message);
 
-	// A new message coming from the kicked user, after the kick has been handled
+	// If the message is coming from a member that has already been kicked, delete all the user messages stored in the cache
 	[...messageCache.get(authorId)]
 		.filter(() => kickedMembers.some(member => member.kicked === message.author.id))
 		.forEach(msg => deleteMessage(authorId, msg));
@@ -88,7 +88,7 @@ const listener = async (message, client) => {
 	// Guard cause for the bot itself or for user with the immunity role
 	if (message.author.id === client.user.id || scammerMember.roles.cache.has(process.env.IMMUNITY_ROLE)) return;
 
-	// Kick && delete all messages from the user from the cache
+	// Kick the scammer member and delete all messages from this user from the cache
 	scammerMember.kick('Tu as envoyé un message dans un channel destiné aux scams')
 		.catch(e => console.error(`Échec de l'expultion de ${message.author}: ${e}`));
 	kickedMembers.push({ kicked: message.author.id, timestamp: Date.now() });

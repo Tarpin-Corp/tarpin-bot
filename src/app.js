@@ -12,7 +12,7 @@ const client = new Client({
 	],
 });
 
-/* Définition des listeners */
+/* Client's listener definition */
 client.once(Events.ClientReady, (readyClient) => {
 	console.log(`Ready! Logged in as ${readyClient.user.tag}`);
 	readyClient.user.setActivity('Destructeur de scammeur');
