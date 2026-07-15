@@ -1,0 +1,108 @@
+/**
+ * @typedef {{id: string, timestamp: number}} KickedMember
+ */
+
+/** @type {Map<string, Array<Message>>} */
+const messagesCache = new Map();
+
+/** @type {Array<KickedMember>} */
+const kickedMembers = [];
+const CACHE_TIME_THRESHOLD = 5 * 60_000;
+
+
+/**
+ * Function that clear messages from the cache that are older than the cache time threshold
+ */
+function clearMessages() {
+	for (const memberMessages of messagesCache.values()) {
+		while (memberMessages.length && memberMessages[0].createdTimestamp < CACHE_TIME_THRESHOLD) {
+			memberMessages.shift();
+		}
+	}
+}
+
+/**
+ * Function that clear KickedMembers from the cache that are older than the cache time threshold
+ */
+function clearKicked() {
+	while (kickedMembers.length && kickedMembers[0].timestamp < CACHE_TIME_THRESHOLD) {
+		kickedMembers.shift();
+	}
+}
+
+/**
+ * Utility function that delete the message from the messageCache
+ * @param authorId {string} Id of the author
+ * @param message {Message} message to delete
+ */
+function deleteMessage(authorId, message) {
+	message.delete()
+		.then(() => {
+			const messages = messagesCache.get(authorId);
+			messages.splice(messages.indexOf(message), 1);
+		})
+		.catch(e => console.error(`Échec de la suppression du message ${e}`));
+}
+
+/**
+ * Add a message in the message cache for the specified author
+ * @param authorId {string} Id of the author
+ * @param message {Message} message to add
+ */
+function addMessage(authorId, message) {
+	if (!messagesCache.has(authorId)) {
+		messagesCache.set(authorId, []);
+	}
+	messagesCache.get(authorId).push(message);
+}
+
+/**
+ * Listener for the honeypot functionality
+ * @param message {Message<boolean> & {channel: Exclude<Message<boolean>["channel"], PartialGroupDMChannel>}} Message to be handled
+ * @param client {Client} Bot
+ */
+const honeypotListener = async (message, client) => {
+	console.log(`Message "${message.content}" reçu dans ${message.channel.name}`);
+	// Guard cause for DM
+	if (!message.inGuild()) return;
+
+	clearKicked();
+	clearMessages();
+
+
+	const authorId = message.author.id;
+
+	// Guard cause for the bot itself
+	if (authorId === client.user.id) return;
+
+	addMessage(authorId, message);
+
+	// If the message is coming from a member that has already been kicked, delete all the user messages stored in the cache
+	[...messagesCache.get(authorId)]
+		.filter(() => kickedMembers.some(member => member.id === authorId))
+		.forEach(msg => deleteMessage(authorId, msg));
+
+	// Guard cause for the honeypot channel
+	if (message.channelId !== process.env.HONEY_POT_ID) return;
+	const scammerMember = message.member;
+
+	// Guard cause in case the message come from a kicked user.
+	if (!scammerMember) {
+		deleteMessage(authorId, message);
+		return;
+	}
+
+	// Guard cause for user with the immunity role
+	if (scammerMember.roles.cache.has(process.env.IMMUNITY_ROLE)) return;
+
+	// Kick the scammer member and delete all messages from this user from the cache
+	scammerMember.kick('Tu as envoyé un message dans un channel destiné aux scams')
+		.then(() => kickedMembers.push({ id: authorId, timestamp: Date.now() }))
+		.catch(e => console.error(`Échec de l'expulsion de ${message.author}: ${e}`));
+
+
+	[...messagesCache.get(authorId)]
+		.forEach((msg) => deleteMessage(authorId, msg));
+};
+
+export default honeypotListener;
