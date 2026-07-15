@@ -1,3 +1,7 @@
+import { readFile, writeFile } from 'fs/promises';
+import {SectionBuilder, MessageFlags, ContainerBuilder} from "discord.js";
+import {text} from "express";
+
 /**
  * @typedef {{id: string, timestamp: number}} KickedMember
  */
@@ -38,6 +42,7 @@ function clearKicked() {
 function deleteMessage(authorId, message) {
 	message.delete()
 		.then(() => {
+			console.log('deleted message', authorId, message.content);
 			const messages = messagesCache.get(authorId);
 			messages.splice(messages.indexOf(message), 1);
 		})
@@ -61,7 +66,7 @@ function addMessage(authorId, message) {
  * @param message {Message<boolean> & {channel: Exclude<Message<boolean>["channel"], PartialGroupDMChannel>}} Message to be handled
  * @param client {Client} Bot
  */
-const honeypotListener = async (message, client) => {
+async function honeypotListener(message, client) {
 	console.log(`Message "${message.content}" reçu dans ${message.channel.name}`);
 	// Guard cause for DM
 	if (!message.inGuild()) return;
@@ -95,14 +100,88 @@ const honeypotListener = async (message, client) => {
 	// Guard cause for user with the immunity role
 	if (scammerMember.roles.cache.has(process.env.IMMUNITY_ROLE)) return;
 
-	// Kick the scammer member and delete all messages from this user from the cache
-	scammerMember.kick('Tu as envoyé un message dans un channel destiné aux scams')
-		.then(() => kickedMembers.push({ id: authorId, timestamp: Date.now() }))
-		.catch(e => console.error(`Échec de l'expulsion de ${message.author}: ${e}`));
 
+	const kickedMember = { id: authorId, timestamp: Date.now() };
+
+	// If the user has not been kicked already
+	if (!kickedMembers.map(k => k.id).some(id => id === authorId)) {
+		kickedMembers.push(kickedMember);
+		// Kick the scammer member and delete all messages from this user from the cache
+		scammerMember.kick('Tu as envoyé un message dans un channel destiné aux scams')
+			.then(() => {
+				readKickedCounter().then(counter => {
+					writeKickedCounter(counter + 1);
+					editWelcomeMessage(client, counter + 1);
+				});
+			})
+			.catch(e => {
+				kickedMembers.splice(kickedMembers.indexOf(kickedMember), 1);
+				console.error(`Échec de l'expulsion de ${message.author}: ${e}`);
+			});
+	}
 
 	[...messagesCache.get(authorId)]
 		.forEach((msg) => deleteMessage(authorId, msg));
 };
 
-export default honeypotListener;
+async function readKickedCounter() {
+	const text = await readFile('src/data/kickedCounter.json', 'utf8');
+	return JSON.parse(text).counter;
+}
+
+function writeKickedCounter(counter) {
+	writeFile('src/data/kickedCounter.json', JSON.stringify({ 'counter': counter }))
+		.then(() => console.log(`Compteur mis à jour à ${counter}`));
+}
+
+function editWelcomeMessage(client, counter) {
+	client.channels.fetch(process.env.HONEY_POT_ID).then(channel => {
+		channel.messages.fetch().then(messages => {
+			const message = messages.first();
+
+			message.edit({
+				components: [createWelcomeMessage(counter)],
+				flags: MessageFlags.IS_COMPONENTS_V2
+			});
+		});
+	}).catch(e => {
+		console.error(`La récupération du channel ${process.env.HONEY_POT_ID} n'a pas fonctionné`);
+		console.error(e);
+	});
+}
+
+function createWelcomeMessage(counter){
+    return new ContainerBuilder()
+		.setAccentColor(0xff0000)
+        .addTextDisplayComponents((textDisplay) => textDisplay.setContent(`# Ne faites plus un bruit aventurier, une simple respiration dans cette forêt et vous tomberez dans l'oublie`,))
+		.addTextDisplayComponents((textDisplay) => textDisplay.setContent(`Une créature rôde, si vous écrivez un message dans ce salon, elle vous emmenera loin d'ici en dehors de votre zone de confort. Le tavernier l'a enfermée ici pour attraper les infâmes pantin d'un mage démoniaque`))
+		.addSeparatorComponents((separator) => separator)
+		.addTextDisplayComponents((textDisplay) => textDisplay.setContent(`D'après ce dernier, elle aurait réussi à expulser de nos contrés ${counter} de ces créatures`))
+
+
+}
+
+/**
+ *
+ * @param client {Client<boolean>}
+ */
+async function honeypotMessageListener(client) {
+	client.channels.fetch(process.env.HONEY_POT_ID).then(channel => {
+		channel.messages.fetch().then(messages => {
+			if (messages.size > 0) return;
+
+			const sessionComponent = createWelcomeMessage(0);
+
+			channel.send({
+				components: [sessionComponent],
+				flags: MessageFlags.IsComponentsV2,
+			});
+		});
+	}).catch(e => {
+		console.error(`La récupération du channel ${process.env.HONEY_POT_ID} n'a pas fonctionné`);
+		console.error(e);
+	});
+
+}
+
+export { honeypotListener, honeypotMessageListener };
