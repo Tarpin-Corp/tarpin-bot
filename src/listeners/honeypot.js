@@ -157,14 +157,17 @@ function editWarningMessage(client, counter) {
  * @returns {ContainerBuilder} The warning message
  */
 function buildWarningMessage(counter){
+	const ames = counter === 1 ? `âme figure` : `âmes figurent`
+	const messageCount = counter === 0
+		? `-# Pour l'instant, aucune âme ne figure dans son registre. Veillons à ce qu'il en reste ainsi.`
+		: `-# Déjà ${counter} ${ames} dans son registre, ne vous faites pas avoir`
     return new ContainerBuilder()
 		.setAccentColor(0xff0000)
-        .addTextDisplayComponents((textDisplay) => textDisplay.setContent(`# Ne faites plus un bruit aventurier, une simple respiration dans cette forêt et vous tomberez dans l'oublie`,))
-		.addTextDisplayComponents((textDisplay) => textDisplay.setContent(`Une créature rôde, si vous écrivez un message dans ce salon, elle vous emmenera loin d'ici en dehors de votre zone de confort. Le tavernier l'a enfermée ici pour attraper les infâmes pantin d'un mage démoniaque`))
+        .addTextDisplayComponents((textDisplay) => textDisplay.setContent(`# Aventurier ! Plus un bruit et surtout n'écrivez pas dans ce salon`,))
+		.addTextDisplayComponents((textDisplay) => textDisplay.setContent(`### Ici est enfermé le *Collecteur*, un esprit tortueux capturé par le Tavernier`))
+		.addTextDisplayComponents((textDisplay) => textDisplay.setContent(`### Il n'attend qu'un seul mot de votre part pour inscrire votre nom dans son grimoire et vous effacer à jamais de la taverne`))
 		.addSeparatorComponents((separator) => separator)
-		.addTextDisplayComponents((textDisplay) => textDisplay.setContent(`D'après ce dernier, elle aurait réussi à expulser de nos contrés ${counter} de ces créatures`))
-
-
+		.addTextDisplayComponents((textDisplay) => textDisplay.setContent(messageCount))
 }
 
 /**
