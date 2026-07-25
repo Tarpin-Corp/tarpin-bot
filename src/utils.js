@@ -39,13 +39,22 @@ export async function InstallGlobalCommands(appId, commands) {
 	}
 }
 
-async function readFile(filePath) {
+/**
+ * Function that read the JSON file from the given path in UTF-8 encoding
+ * @param filePath {string} The path of the file from the project root
+ * @returns {Promise<any>} A promise containing the content of the file
+ */
 export async function readJsonFile(filePath) {
 	const text = await readFile(filePath, 'utf8');
 	return JSON.parse(text);
 }
 
-function writeFile(filePath, content) {
+/**
+ * Writes the given JSON content to the given path
+ *
+ * @param filePath {string} The path of the file from the project root
+ * @param content {Object} Content to be written as a JSON
+ */
 export function writeJsonFile(filePath, content) {
 	writeFile(filePath, JSON.stringify(content))
 		.then(() => console.log(`Contenu écrit: ${content}`));

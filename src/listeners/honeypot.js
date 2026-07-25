@@ -117,6 +117,7 @@ async function honeypotListener(message, client) {
 				});
 			})
 			.catch(e => {
+				// If the kick fails, remove the member from the kick list
 				kickedMembers.splice(kickedMembers.indexOf(kickedMember), 1);
 				console.error(`Échec de l'expulsion de ${message.author}: ${e}`);
 			});
@@ -126,9 +127,13 @@ async function honeypotListener(message, client) {
 		.forEach((msg) => deleteMessage(authorId, msg));
 }
 
-
-
-
+/**
+ * Function that edits the warning message to update the kicked counter.
+ * The function considers the first message of the honeypot being the warning message from the bot
+ *
+ * @param client {Client<boolean>} The bot
+ * @param counter {number} The new counter of members kicked from the guild
+ */
 function editWarningMessage(client, counter) {
 	client.channels.fetch(process.env.HONEY_POT_ID).then(channel => {
 		channel.messages.fetch().then(messages => {
@@ -148,7 +153,7 @@ function editWarningMessage(client, counter) {
 /**
  * Function that build a Discord container. It is destined to the warning message from the honeypot
  *
- * @param counter Number of members kicked from the guild
+ * @param counter {number}  The counter of members kicked from the guild
  * @returns {ContainerBuilder} The warning message
  */
 function buildWarningMessage(counter){
@@ -163,8 +168,9 @@ function buildWarningMessage(counter){
 }
 
 /**
+ * Listener that send the warning message if there isn't one in the honeypot channel
  *
- * @param client {Client<boolean>}
+ * @param client {Client<boolean>} The bot
  */
 async function honeypotMessageListener(client) {
 	client.channels.fetch(process.env.HONEY_POT_ID).then(channel => {
