@@ -111,7 +111,8 @@ async function honeypotListener(message, client) {
 		// Kick the scammer member and delete all messages from this user from the cache
 		scammerMember.kick('Tu as envoyé un message dans un channel destiné aux scams')
 			.then(() => {
-				readJsonFile(KICKED_COUNTER_PATH).then(counter => {
+				readJsonFile(KICKED_COUNTER_PATH).then(fileContent => {
+					const counter = fileContent.counter;
 					writeJsonFile(KICKED_COUNTER_PATH, { 'counter': counter + 1 });
 					editWarningMessage(client, counter + 1);
 				});
