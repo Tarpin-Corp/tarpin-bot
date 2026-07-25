@@ -1,6 +1,5 @@
 import 'dotenv/config';
 import { readFile, writeFile } from 'fs/promises';
-import {MessageFlags} from "discord.js";
 
 export async function DiscordRequest(endpoint, options) {
 	// append endpoint to root API URL

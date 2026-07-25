@@ -1,6 +1,5 @@
-
-import {MessageFlags, ContainerBuilder} from "discord.js";
-import {readJsonFile, writeJsonFile} from "../utils.js"
+import { MessageFlags, ContainerBuilder } from 'discord.js';
+import { readJsonFile, writeJsonFile } from '../utils.js';
 
 /**
  * @typedef {{id: string, timestamp: number}} KickedMember
@@ -13,7 +12,7 @@ const messagesCache = new Map();
 const kickedMembers = [];
 const CACHE_TIME_THRESHOLD = 5 * 60_000;
 
-const KICKED_COUNTER_PATH = `src/data/kickedCounter.json`
+const KICKED_COUNTER_PATH = 'src/data/kickedCounter.json';
 
 
 /**
@@ -142,7 +141,7 @@ function editWarningMessage(client, counter) {
 
 			message.edit({
 				components: [buildWarningMessage(counter)],
-				flags: MessageFlags.IS_COMPONENTS_V2
+				flags: MessageFlags.IS_COMPONENTS_V2,
 			});
 		});
 	}).catch(e => {
@@ -157,18 +156,18 @@ function editWarningMessage(client, counter) {
  * @param counter {number}  The counter of members kicked from the guild
  * @returns {ContainerBuilder} The warning message
  */
-function buildWarningMessage(counter){
-	const ames = counter === 1 ? `âme figure` : `âmes figurent`
+function buildWarningMessage(counter) {
+	const ames = counter === 1 ? 'âme figure' : 'âmes figurent';
 	const messageCount = counter === 0
-		? `-# Pour l'instant, aucune âme ne figure dans son registre. Veillons à ce qu'il en reste ainsi.`
-		: `-# Déjà ${counter} ${ames} dans son registre, ne vous faites pas avoir`
-    return new ContainerBuilder()
+		? '-# Pour l\'instant, aucune âme ne figure dans son registre. Veillons à ce qu\'il en reste ainsi.'
+		: `-# Déjà ${counter} ${ames} dans son registre, ne vous faites pas avoir`;
+	return new ContainerBuilder()
 		.setAccentColor(0xff0000)
-        .addTextDisplayComponents((textDisplay) => textDisplay.setContent(`# Aventurier ! Plus un bruit et surtout n'écrivez pas dans ce salon`,))
-		.addTextDisplayComponents((textDisplay) => textDisplay.setContent(`### Ici est enfermé le *Collecteur*, un esprit tortueux capturé par le Tavernier`))
-		.addTextDisplayComponents((textDisplay) => textDisplay.setContent(`### Il n'attend qu'un seul mot de votre part pour inscrire votre nom dans son grimoire et vous effacer à jamais de la taverne`))
+		.addTextDisplayComponents((textDisplay) => textDisplay.setContent('# Aventurier ! Plus un bruit et surtout n\'écrivez pas dans ce salon'))
+		.addTextDisplayComponents((textDisplay) => textDisplay.setContent('### Ici est enfermé le *Collecteur*, un esprit tortueux capturé par le Tavernier'))
+		.addTextDisplayComponents((textDisplay) => textDisplay.setContent('### Il n\'attend qu\'un seul mot de votre part pour inscrire votre nom dans son grimoire et vous effacer à jamais de la taverne'))
 		.addSeparatorComponents((separator) => separator)
-		.addTextDisplayComponents((textDisplay) => textDisplay.setContent(messageCount))
+		.addTextDisplayComponents((textDisplay) => textDisplay.setContent(messageCount));
 }
 
 /**
