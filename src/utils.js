@@ -1,4 +1,6 @@
 import 'dotenv/config';
+import { readFile, writeFile } from 'fs/promises';
+import {MessageFlags} from "discord.js";
 
 export async function DiscordRequest(endpoint, options) {
 	// append endpoint to root API URL
@@ -35,4 +37,16 @@ export async function InstallGlobalCommands(appId, commands) {
 	catch (err) {
 		console.error(err);
 	}
+}
+
+async function readFile(filePath) {
+export async function readJsonFile(filePath) {
+	const text = await readFile(filePath, 'utf8');
+	return JSON.parse(text);
+}
+
+function writeFile(filePath, content) {
+export function writeJsonFile(filePath, content) {
+	writeFile(filePath, JSON.stringify(content))
+		.then(() => console.log(`Contenu écrit: ${content}`));
 }

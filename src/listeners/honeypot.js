@@ -1,6 +1,6 @@
-import { readFile, writeFile } from 'fs/promises';
-import {SectionBuilder, MessageFlags, ContainerBuilder} from "discord.js";
-import {text} from "express";
+
+import {MessageFlags, ContainerBuilder} from "discord.js";
+import {readJsonFile, writeJsonFile} from "../utils.js"
 
 /**
  * @typedef {{id: string, timestamp: number}} KickedMember
@@ -12,6 +12,8 @@ const messagesCache = new Map();
 /** @type {Array<KickedMember>} */
 const kickedMembers = [];
 const CACHE_TIME_THRESHOLD = 5 * 60_000;
+
+const KICKED_COUNTER_PATH = `src/data/kickedCounter.json`
 
 
 /**
@@ -109,9 +111,9 @@ async function honeypotListener(message, client) {
 		// Kick the scammer member and delete all messages from this user from the cache
 		scammerMember.kick('Tu as envoyé un message dans un channel destiné aux scams')
 			.then(() => {
-				readKickedCounter().then(counter => {
-					writeKickedCounter(counter + 1);
-					editWelcomeMessage(client, counter + 1);
+				readJsonFile(KICKED_COUNTER_PATH).then(counter => {
+					writeJsonFile(KICKED_COUNTER_PATH, { 'counter': counter + 1 });
+					editWarningMessage(client, counter + 1);
 				});
 			})
 			.catch(e => {
@@ -122,25 +124,18 @@ async function honeypotListener(message, client) {
 
 	[...messagesCache.get(authorId)]
 		.forEach((msg) => deleteMessage(authorId, msg));
-};
-
-async function readKickedCounter() {
-	const text = await readFile('src/data/kickedCounter.json', 'utf8');
-	return JSON.parse(text).counter;
 }
 
-function writeKickedCounter(counter) {
-	writeFile('src/data/kickedCounter.json', JSON.stringify({ 'counter': counter }))
-		.then(() => console.log(`Compteur mis à jour à ${counter}`));
-}
 
-function editWelcomeMessage(client, counter) {
+
+
+function editWarningMessage(client, counter) {
 	client.channels.fetch(process.env.HONEY_POT_ID).then(channel => {
 		channel.messages.fetch().then(messages => {
 			const message = messages.first();
 
 			message.edit({
-				components: [createWelcomeMessage(counter)],
+				components: [buildWarningMessage(counter)],
 				flags: MessageFlags.IS_COMPONENTS_V2
 			});
 		});
@@ -150,7 +145,13 @@ function editWelcomeMessage(client, counter) {
 	});
 }
 
-function createWelcomeMessage(counter){
+/**
+ * Function that build a Discord container. It is destined to the warning message from the honeypot
+ *
+ * @param counter Number of members kicked from the guild
+ * @returns {ContainerBuilder} The warning message
+ */
+function buildWarningMessage(counter){
     return new ContainerBuilder()
 		.setAccentColor(0xff0000)
         .addTextDisplayComponents((textDisplay) => textDisplay.setContent(`# Ne faites plus un bruit aventurier, une simple respiration dans cette forêt et vous tomberez dans l'oublie`,))
@@ -170,10 +171,10 @@ async function honeypotMessageListener(client) {
 		channel.messages.fetch().then(messages => {
 			if (messages.size > 0) return;
 
-			const sessionComponent = createWelcomeMessage(0);
+			const warningMessage = buildWarningMessage(0);
 
 			channel.send({
-				components: [sessionComponent],
+				components: [warningMessage],
 				flags: MessageFlags.IsComponentsV2,
 			});
 		});
