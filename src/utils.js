@@ -55,6 +55,7 @@ export async function readJsonFile(filePath) {
  * @param content {Object} Content to be written as a JSON
  */
 export function writeJsonFile(filePath, content) {
-	writeFile(filePath, JSON.stringify(content))
-		.then(() => console.log(`Contenu écrit: ${content}`));
+	const data = JSON.stringify(content);
+	writeFile(filePath, data)
+		.then(() => console.log(`Contenu écrit: ${data}`));
 }
