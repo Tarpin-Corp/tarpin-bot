@@ -1,3 +1,6 @@
+import { MessageFlags, ContainerBuilder } from 'discord.js';
+import { readJsonFile, writeJsonFile } from '../utils.js';
+
 /**
  * @typedef {{id: string, timestamp: number}} KickedMember
  */
@@ -8,6 +11,8 @@ const messagesCache = new Map();
 /** @type {Array<KickedMember>} */
 const kickedMembers = [];
 const CACHE_TIME_THRESHOLD = 5 * 60_000;
+
+const KICKED_COUNTER_PATH = 'src/data/kickedCounter.json';
 
 
 /**
@@ -38,6 +43,7 @@ function clearKicked() {
 function deleteMessage(authorId, message) {
 	message.delete()
 		.then(() => {
+			console.log('deleted message', authorId, message.content);
 			const messages = messagesCache.get(authorId);
 			messages.splice(messages.indexOf(message), 1);
 		})
@@ -61,7 +67,7 @@ function addMessage(authorId, message) {
  * @param message {Message<boolean> & {channel: Exclude<Message<boolean>["channel"], PartialGroupDMChannel>}} Message to be handled
  * @param client {Client} Bot
  */
-const honeypotListener = async (message, client) => {
+async function honeypotListener(message, client) {
 	console.log(`Message "${message.content}" reçu dans ${message.channel.name}`);
 	// Guard cause for DM
 	if (!message.inGuild()) return;
@@ -95,14 +101,97 @@ const honeypotListener = async (message, client) => {
 	// Guard cause for user with the immunity role
 	if (scammerMember.roles.cache.has(process.env.IMMUNITY_ROLE)) return;
 
-	// Kick the scammer member and delete all messages from this user from the cache
-	scammerMember.kick('Tu as envoyé un message dans un channel destiné aux scams')
-		.then(() => kickedMembers.push({ id: authorId, timestamp: Date.now() }))
-		.catch(e => console.error(`Échec de l'expulsion de ${message.author}: ${e}`));
 
+	const kickedMember = { id: authorId, timestamp: Date.now() };
+
+	// If the user has not been kicked already
+	if (!kickedMembers.map(k => k.id).some(id => id === authorId)) {
+		kickedMembers.push(kickedMember);
+		// Kick the scammer member and delete all messages from this user from the cache
+		scammerMember.kick('Tu as envoyé un message dans un channel destiné aux scams')
+			.then(() => {
+				readJsonFile(KICKED_COUNTER_PATH).then(fileContent => {
+					const counter = fileContent.counter;
+					writeJsonFile(KICKED_COUNTER_PATH, { 'counter': counter + 1 });
+					editWarningMessage(client, counter + 1);
+				});
+			})
+			.catch(e => {
+				// If the kick fails, remove the member from the kick list
+				kickedMembers.splice(kickedMembers.indexOf(kickedMember), 1);
+				console.error(`Échec de l'expulsion de ${message.author}: ${e}`);
+			});
+	}
 
 	[...messagesCache.get(authorId)]
 		.forEach((msg) => deleteMessage(authorId, msg));
-};
+}
 
-export default honeypotListener;
+/**
+ * Function that edits the warning message to update the kicked counter.
+ * The function considers the first message of the honeypot being the warning message from the bot
+ *
+ * @param client {Client<boolean>} The bot
+ * @param counter {number} The new counter of members kicked from the guild
+ */
+function editWarningMessage(client, counter) {
+	client.channels.fetch(process.env.HONEY_POT_ID).then(channel => {
+		channel.messages.fetch().then(messages => {
+			const message = messages.first();
+
+			message.edit({
+				components: [buildWarningMessage(counter)],
+				flags: MessageFlags.IS_COMPONENTS_V2,
+			});
+		});
+	}).catch(e => {
+		console.error(`La récupération du channel ${process.env.HONEY_POT_ID} n'a pas fonctionné`);
+		console.error(e);
+	});
+}
+
+/**
+ * Function that build a Discord container. It is destined to the warning message from the honeypot
+ *
+ * @param counter {number}  The counter of members kicked from the guild
+ * @returns {ContainerBuilder} The warning message
+ */
+function buildWarningMessage(counter) {
+	const ames = counter === 1 ? 'âme figure' : 'âmes figurent';
+	const messageCount = counter === 0
+		? '-# Pour l\'instant, aucune âme ne figure dans son registre. Veillons à ce qu\'il en reste ainsi.'
+		: `-# Déjà ${counter} ${ames} dans son registre, ne vous faites pas avoir`;
+	return new ContainerBuilder()
+		.setAccentColor(0xff0000)
+		.addTextDisplayComponents((textDisplay) => textDisplay.setContent('# Aventurier ! Plus un bruit et surtout n\'écrivez pas dans ce salon'))
+		.addTextDisplayComponents((textDisplay) => textDisplay.setContent('### Ici est enfermé le *Collecteur*, un esprit tortueux capturé par le Tavernier'))
+		.addTextDisplayComponents((textDisplay) => textDisplay.setContent('### Il n\'attend qu\'un seul mot de votre part pour inscrire votre nom dans son grimoire et vous effacer à jamais de la taverne'))
+		.addSeparatorComponents((separator) => separator)
+		.addTextDisplayComponents((textDisplay) => textDisplay.setContent(messageCount));
+}
+
+/**
+ * Listener that send the warning message if there isn't one in the honeypot channel
+ *
+ * @param client {Client<boolean>} The bot
+ */
+async function honeypotMessageListener(client) {
+	client.channels.fetch(process.env.HONEY_POT_ID).then(channel => {
+		channel.messages.fetch().then(messages => {
+			if (messages.size > 0) return;
+
+			const warningMessage = buildWarningMessage(0);
+
+			channel.send({
+				components: [warningMessage],
+				flags: MessageFlags.IsComponentsV2,
+			});
+		});
+	}).catch(e => {
+		console.error(`La récupération du channel ${process.env.HONEY_POT_ID} n'a pas fonctionné`);
+		console.error(e);
+	});
+
+}
+
+export { honeypotListener, honeypotMessageListener };
