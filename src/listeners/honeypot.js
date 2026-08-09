@@ -1,5 +1,6 @@
-import { MessageFlags, ContainerBuilder } from 'discord.js';
+import { ContainerBuilder, MessageFlags } from 'discord.js';
 import { readJsonFile, writeJsonFile } from '../utils/utils.js';
+import ResourceLocker from '../utils/ResourcesLock.js';
 
 /**
  * @typedef {{id: string, timestamp: number}} KickedMember
@@ -14,15 +15,18 @@ const CACHE_TIME_THRESHOLD = 5 * 60_000;
 
 const KICKED_COUNTER_PATH = 'src/data/kickedCounter.json';
 
+const messagesLock = new ResourceLocker();
+
 
 /**
  * Function that clear messages from the cache that are older than the cache time threshold
  */
-function clearMessages() {
-	for (const memberMessages of messagesCache.values()) {
-		while (memberMessages.length && memberMessages[0].createdTimestamp < CACHE_TIME_THRESHOLD) {
-			memberMessages.shift();
-		}
+async function clearMessages() {
+	for (const member of messagesCache.keys()) {
+		await messagesLock.run(member, async () => {
+			const messages = messagesCache.get(member);
+			messagesCache.set(member, messages.filter(msg => msg.createdTimestamp >= CACHE_TIME_THRESHOLD));
+		});
 	}
 }
 
@@ -36,18 +40,28 @@ function clearKicked() {
 }
 
 /**
- * Utility function that delete the message from the messageCache
+ * Utility function that delete all messages registered from a member
  * @param authorId {string} Id of the author
- * @param message {Message} message to delete
  */
-function deleteMessage(authorId, message) {
-	message.delete()
-		.then(() => {
-			console.log('deleted message', authorId, message.content);
-			const messages = messagesCache.get(authorId);
-			messages.splice(messages.indexOf(message), 1);
-		})
-		.catch(e => console.error(`Échec de la suppression du message ${e}`));
+async function deleteMessage(authorId) {
+	const messages = await messagesLock.run(authorId, async () => {
+		const authorMessage = messagesCache.get(authorId);
+		messagesCache.delete(authorId);
+		return authorMessage;
+	});
+
+	if (!messages || messages.length === 0) return;
+
+	try {
+		await Promise.all([...messages].map(message => {
+			message.delete()
+				.then(() => console.log('deleted message', authorId, message.content))
+				.catch(console.error);
+		}));
+	}
+	catch (e) {
+		console.error(`Échec de la suppression des message ${e}`);
+	}
 }
 
 /**
@@ -55,11 +69,13 @@ function deleteMessage(authorId, message) {
  * @param authorId {string} Id of the author
  * @param message {Message} message to add
  */
-function addMessage(authorId, message) {
-	if (!messagesCache.has(authorId)) {
-		messagesCache.set(authorId, []);
-	}
-	messagesCache.get(authorId).push(message);
+async function addMessage(authorId, message) {
+	await messagesLock.run(authorId, async () => {
+		if (!messagesCache.has(authorId)) {
+			messagesCache.set(authorId, []);
+		}
+		messagesCache.get(authorId).push(message);
+	});
 }
 
 /**
@@ -73,7 +89,7 @@ async function honeypotListener(message, client) {
 	if (!message.inGuild()) return;
 
 	clearKicked();
-	clearMessages();
+	await clearMessages();
 
 
 	const authorId = message.author.id;
@@ -81,12 +97,13 @@ async function honeypotListener(message, client) {
 	// Guard cause for the bot itself
 	if (authorId === client.user.id) return;
 
-	addMessage(authorId, message);
+	await addMessage(authorId, message);
 
 	// If the message is coming from a member that has already been kicked, delete all the user messages stored in the cache
-	[...messagesCache.get(authorId)]
-		.filter(() => kickedMembers.some(member => member.id === authorId))
-		.forEach(msg => deleteMessage(authorId, msg));
+	if (kickedMembers.some(member => member.id === authorId)) {
+		await deleteMessage(authorId);
+		return ;
+	}
 
 	// Guard cause for the honeypot channel
 	if (message.channelId !== process.env.HONEY_POT_ID) return;
@@ -94,7 +111,7 @@ async function honeypotListener(message, client) {
 
 	// Guard cause in case the message come from a kicked user.
 	if (!scammerMember) {
-		deleteMessage(authorId, message);
+		await deleteMessage(authorId);
 		return;
 	}
 
@@ -122,9 +139,7 @@ async function honeypotListener(message, client) {
 				console.error(`Échec de l'expulsion de ${message.author}: ${e}`);
 			});
 	}
-
-	[...messagesCache.get(authorId)]
-		.forEach((msg) => deleteMessage(authorId, msg));
+	await deleteMessage(authorId);
 }
 
 /**
