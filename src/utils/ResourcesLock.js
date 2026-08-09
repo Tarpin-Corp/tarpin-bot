@@ -6,10 +6,7 @@
  * Par exemple un Snowflake de membre de guilde par exemple pour gérer des opérations sur des membres.
  */
 export default class ResourcesLock {
-
-	constructor() {
-		this.locks = new Map();
-	}
+	#locks = new Map();
 
 	/**
 	 * Effectue une opération en appliquant un verrou autour de la ressource donnée
@@ -19,7 +16,7 @@ export default class ResourcesLock {
 	 * @returns {Promise<*>} Une promesse sur le résultat de l'opération donné
 	 */
 	async run(resource, operation) {
-		const previous = this.locks.get(resource) ?? Promise.resolve();
+		const previous = this.#locks.get(resource) ?? Promise.resolve();
 
 		let release;
 
@@ -27,7 +24,7 @@ export default class ResourcesLock {
 			release = resolve;
 		});
 
-		this.locks.set(resource, current);
+		this.#locks.set(resource, current);
 
 		await previous;
 
@@ -37,8 +34,8 @@ export default class ResourcesLock {
 		finally {
 			release();
 
-			if (this.locks.get(resource) === current) {
-				this.locks.delete(resource);
+			if (this.#locks.get(resource) === current) {
+				this.#locks.delete(resource);
 			}
 		}
 	}
