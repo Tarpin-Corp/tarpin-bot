@@ -15,7 +15,7 @@ const CACHE_TIME_THRESHOLD = 5 * 60_000;
 
 const KICKED_COUNTER_PATH = 'src/data/kickedCounter.json';
 
-const messagesLock = new ResourceLocker();
+const memberLock = new ResourceLocker();
 
 
 /**
@@ -23,7 +23,7 @@ const messagesLock = new ResourceLocker();
  */
 async function clearMessages() {
 	for (const member of messagesCache.keys()) {
-		await messagesLock.run(member, async () => {
+		await memberLock.run(member, async () => {
 			const messages = messagesCache.get(member);
 			messagesCache.set(member, messages.filter(msg => msg.createdTimestamp >= CACHE_TIME_THRESHOLD));
 		});
@@ -44,7 +44,7 @@ function clearKicked() {
  * @param authorId {string} Id of the author
  */
 async function deleteMessage(authorId) {
-	const messages = await messagesLock.run(authorId, async () => {
+	const messages = await memberLock.run(authorId, async () => {
 		const authorMessage = messagesCache.get(authorId);
 		messagesCache.delete(authorId);
 		return authorMessage;
@@ -70,7 +70,7 @@ async function deleteMessage(authorId) {
  * @param message {Message} message to add
  */
 async function addMessage(authorId, message) {
-	await messagesLock.run(authorId, async () => {
+	await memberLock.run(authorId, async () => {
 		if (!messagesCache.has(authorId)) {
 			messagesCache.set(authorId, []);
 		}
@@ -124,7 +124,7 @@ async function honeypotListener(message, client) {
 	// If the user has not been kicked already
 	if (!kickedMembers.map(k => k.id).some(id => id === authorId)) {
 		kickedMembers.push(kickedMember);
-		await messagesLock.run(kickedMember.id, async () => {
+		await memberLock.run(kickedMember.id, async () => {
 			// Kick the scammer member and delete all messages from this user from the cache
 			scammerMember.kick('Tu as envoyé un message dans un channel destiné aux scams')
 				.then(() => {
