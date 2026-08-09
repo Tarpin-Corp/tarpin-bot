@@ -124,20 +124,22 @@ async function honeypotListener(message, client) {
 	// If the user has not been kicked already
 	if (!kickedMembers.map(k => k.id).some(id => id === authorId)) {
 		kickedMembers.push(kickedMember);
-		// Kick the scammer member and delete all messages from this user from the cache
-		scammerMember.kick('Tu as envoyé un message dans un channel destiné aux scams')
-			.then(() => {
-				readJsonFile(KICKED_COUNTER_PATH).then(fileContent => {
-					const counter = fileContent.counter;
-					writeJsonFile(KICKED_COUNTER_PATH, { 'counter': counter + 1 });
-					editWarningMessage(client, counter + 1);
+		await messagesLock.run(kickedMember.id, async () => {
+			// Kick the scammer member and delete all messages from this user from the cache
+			scammerMember.kick('Tu as envoyé un message dans un channel destiné aux scams')
+				.then(() => {
+					readJsonFile(KICKED_COUNTER_PATH).then(fileContent => {
+						const counter = fileContent.counter;
+						writeJsonFile(KICKED_COUNTER_PATH, { 'counter': counter + 1 });
+						editWarningMessage(client, counter + 1);
+					});
+				})
+				.catch(e => {
+					// If the kick fails, remove the member from the kick list
+					kickedMembers.splice(kickedMembers.indexOf(kickedMember), 1);
+					console.error(`Échec de l'expulsion de ${message.author}: ${e}`);
 				});
-			})
-			.catch(e => {
-				// If the kick fails, remove the member from the kick list
-				kickedMembers.splice(kickedMembers.indexOf(kickedMember), 1);
-				console.error(`Échec de l'expulsion de ${message.author}: ${e}`);
-			});
+		});
 	}
 	await deleteMessage(authorId);
 }
