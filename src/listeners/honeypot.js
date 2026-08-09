@@ -158,7 +158,7 @@ async function editWarningMessage(client, counter) {
 	try {
 		const channel = await client.channels.fetch(process.env.HONEY_POT_ID);
 		const messages = await channel.messages.fetch();
-		const message = messages.first();
+		const message = messages.last();
 
 		await message.edit({
 			components: [buildWarningMessage(counter)],
