@@ -1,4 +1,4 @@
-import { MessageFlags, ContainerBuilder } from 'discord.js';
+import { ContainerBuilder, MessageFlags } from 'discord.js';
 import { readJsonFile, writeJsonFile } from '../utils.js';
 
 /**
@@ -128,29 +128,6 @@ async function honeypotListener(message, client) {
 }
 
 /**
- * Function that edits the warning message to update the kicked counter.
- * The function considers the first message of the honeypot being the warning message from the bot
- *
- * @param client {Client<boolean>} The bot
- * @param counter {number} The new counter of members kicked from the guild
- */
-function editWarningMessage(client, counter) {
-	client.channels.fetch(process.env.HONEY_POT_ID).then(channel => {
-		channel.messages.fetch().then(messages => {
-			const message = messages.first();
-
-			message.edit({
-				components: [buildWarningMessage(counter)],
-				flags: MessageFlags.IS_COMPONENTS_V2,
-			});
-		});
-	}).catch(e => {
-		console.error(`La récupération du channel ${process.env.HONEY_POT_ID} n'a pas fonctionné`);
-		console.error(e);
-	});
-}
-
-/**
  * Function that build a Discord container. It is destined to the warning message from the honeypot
  *
  * @param counter {number}  The counter of members kicked from the guild
@@ -171,26 +148,53 @@ function buildWarningMessage(counter) {
 }
 
 /**
+ * Function that edits the warning message to update the kicked counter.
+ * The function considers the first message of the honeypot being the warning message from the bot
+ *
+ * @param client {Client<boolean>} The bot
+ * @param counter {number} The new counter of members kicked from the guild
+ */
+async function editWarningMessage(client, counter) {
+	try {
+		const channel = await client.channels.fetch(process.env.HONEY_POT_ID);
+		const messages = await channel.messages.fetch();
+		const message = messages.first();
+
+		await message.edit({
+			components: [buildWarningMessage(counter)],
+			flags: MessageFlags.IS_COMPONENTS_V2,
+		});
+	}
+	catch (e) {
+		console.error(
+			`La récupération ou modification du message du channel ${process.env.HONEY_POT_ID} n'a pas fonctionné`,
+		);
+		console.error(e);
+	}
+}
+
+/**
  * Listener that send the warning message if there isn't one in the honeypot channel
  *
  * @param client {Client<boolean>} The bot
  */
 async function honeypotMessageListener(client) {
-	client.channels.fetch(process.env.HONEY_POT_ID).then(channel => {
-		channel.messages.fetch().then(messages => {
-			if (messages.size > 0) return;
+	try {
+		const channel = await client.channels.fetch(process.env.HONEY_POT_ID);
+		const messages = await channel.messages.fetch();
+		if (messages.size > 0) return;
 
-			const warningMessage = buildWarningMessage(0);
+		const warningMessage = buildWarningMessage(0);
 
-			channel.send({
-				components: [warningMessage],
-				flags: MessageFlags.IsComponentsV2,
-			});
+		return channel.send({
+			components: [warningMessage],
+			flags: MessageFlags.IsComponentsV2,
 		});
-	}).catch(e => {
+	}
+	catch (e) {
 		console.error(`La récupération du channel ${process.env.HONEY_POT_ID} n'a pas fonctionné`);
 		console.error(e);
-	});
+	}
 
 }
 
