@@ -1,5 +1,5 @@
 import { MessageFlags, ContainerBuilder } from 'discord.js';
-import { readJsonFile, writeJsonFile } from '../utils.js';
+import { readJsonFile, writeJsonFile } from '../utils/utils.js';
 
 /**
  * @typedef {{id: string, timestamp: number}} KickedMember
