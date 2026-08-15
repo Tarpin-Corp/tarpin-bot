@@ -17,19 +17,17 @@ client.once(Events.ClientReady, (readyClient) => {
     console.log(`Ready! Logged in as ${readyClient.user.tag}`);
     readyClient.user.setActivity('Destructeur de scammeur');
     honeypotMessageListener(readyClient)
-        .then(() => {console.log('Message de bienvenue créé !')})
+        .then(() => {
+            console.log('Message de bienvenue créé !')
+        })
         .catch(console.error);
 });
 
 client.on(Events.MessageCreate, message => {
-    try {
-        honeypotListener(message, client);
-        honeypotMessageListener(client)
-            .catch(console.error);
-    } catch (e) {
-        console.error("Une erreur inattendue est survenue");
-        console.error(e);
-    }
+    honeypotListener(message, client)
+        .catch(console.error);
+    honeypotMessageListener(client)
+        .catch(console.error);
 });
 
 client

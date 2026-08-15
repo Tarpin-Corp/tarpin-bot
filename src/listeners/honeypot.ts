@@ -1,5 +1,6 @@
 import {Client, ContainerBuilder, Message, MessageFlags, Snowflake, TextBasedChannel} from 'discord.js';
 import {getChannelName, readJsonFile, writeJsonFile} from '../utils/utils';
+import OperationQueue from "../utils/OperationQueue";
 
 interface KickedCounter {
     counter: number;
@@ -9,6 +10,8 @@ interface KickedMember {
     id: Snowflake,
     timestamp: number
 }
+
+const memberQueue = new OperationQueue<Snowflake>();
 
 const messagesCache = new Map<Snowflake, Message[]>();
 const kickedMembers: KickedMember[] = [];
@@ -20,39 +23,56 @@ const KICKED_COUNTER_PATH = 'src/data/kickedCounter.json';
 /**
  * Function that clear messages from the cache that are older than the cache time threshold
  */
-function clearMessages(): void {
-    for (const memberMessages of messagesCache.values()) {
-        while (memberMessages.length && memberMessages[0].createdTimestamp < CACHE_TIME_THRESHOLD) {
-            memberMessages.shift();
-        }
+async function clearMessages(): Promise<void> {
+    for (const member of messagesCache.keys()) {
+        await memberQueue.run(member, () => {
+            const messages = messagesCache.get(member) ?? [];
+            messagesCache.set(member, messages.filter(msg => msg.createdTimestamp >= CACHE_TIME_THRESHOLD));
+        });
     }
 }
 
 /**
  * Function that clear KickedMembers from the cache that are older than the cache time threshold
  */
-function clearKicked(): void {
-    while (kickedMembers.length && kickedMembers[0].timestamp < CACHE_TIME_THRESHOLD) {
-        kickedMembers.shift();
-    }
+async function clearKicked(): Promise<void> {
+    await memberQueue.run(process.env.GUILD_ID ?? "", () => {
+        while (kickedMembers.length && kickedMembers[0].timestamp < CACHE_TIME_THRESHOLD) {
+            kickedMembers.shift();
+        }
+    })
 }
 
 /**
  * Utility function that delete the message from the messageCache
  * @param authorId {string} Id of the author
- * @param message {Message} message to delete
  */
-function deleteMessage(authorId: Snowflake, message: Message): void {
-    message.delete()
-        .then(() => {
-            console.log('deleted message', authorId, message.content);
-            const messages: Message[] = messagesCache.get(authorId) ?? [];
-            messages.splice(messages.indexOf(message), 1);
-        })
-        .catch((e: unknown) => {
-            console.error(`Échec de la suppression du message`);
-            console.error(e)
+async function deleteMessagesFromAuthor(authorId: Snowflake): Promise<void> {
+    const messages = await memberQueue.run(authorId, () => {
+        const authorMessage = messagesCache.get(authorId);
+        messagesCache.delete(authorId);
+        return authorMessage ?? [];
+    });
+
+    if (messages.length === 0) return;
+
+    try {
+        const promisedDeletion = messages.map(async message => {
+            await message.delete()
+                .then(() => {
+                    console.log('deleted message from', authorId, message.content);
+                })
+                .catch((e: unknown) => {
+                    console.error(`Échec de la suppression du message: ${message.content}`)
+                    console.error(e);
+                });
         });
+
+        await Promise.all(promisedDeletion);
+    } catch (e) {
+        console.error(`Échec de la suppression des message`);
+        console.error(e);
+    }
 }
 
 /**
@@ -60,26 +80,28 @@ function deleteMessage(authorId: Snowflake, message: Message): void {
  * @param authorId {string} Id of the author
  * @param message {Message} message to add
  */
-function addMessage(authorId: Snowflake, message: Message): void {
-    if (!messagesCache.has(authorId)) {
-        messagesCache.set(authorId, []);
-    }
-    // @ts-expect-error Cannot be undefined as the check with "has" and the set
-    messagesCache.get(authorId).push(message);
+async function addMessage(authorId: Snowflake, message: Message): Promise<void> {
+    await memberQueue.run(authorId, () => {
+        if (!messagesCache.has(authorId)) {
+            messagesCache.set(authorId, []);
+        }
+        // @ts-expect-error Cannot be undefined due to the check with "has" and "set"
+        messagesCache.get(authorId).push(message);
+    })
 }
 
 /**
  * Listener for the honeypot functionality
- * @param message {Message<boolean> & {channel: Exclude<Message<boolean>["channel"], PartialGroupDMChannel>}} Message to be handled
+ * @param message {Message} Message to be handled
  * @param client {Client} Bot
  */
-function honeypotListener(message: Message, client: Client): void {
+async function honeypotListener(message: Message, client: Client): Promise<void> {
     console.log(`Message "${message.content}" reçu dans ${getChannelName(message.channel)}`);
     // Guard cause for DM
     if (!message.inGuild()) return;
 
-    clearKicked();
-    clearMessages();
+    await clearKicked();
+    await clearMessages();
 
 
     const authorId = message.author.id;
@@ -87,14 +109,12 @@ function honeypotListener(message: Message, client: Client): void {
     // Guard cause for the bot itself
     if (authorId === client.user?.id) return;
 
-    addMessage(authorId, message);
+    await addMessage(authorId, message);
 
     // If the message is coming from a member that has already been kicked, delete all the user messages stored in the cache
-    (messagesCache.get(authorId) ?? [])
-        .filter(() => kickedMembers.some(member => member.id === authorId))
-        .forEach(msg => {
-            deleteMessage(authorId, msg);
-        });
+    if (kickedMembers.some(kickedMember => kickedMember.id === authorId)) {
+        await deleteMessagesFromAuthor(authorId);
+    }
 
     // Guard cause for the honeypot channel
     if (message.channelId !== process.env.HONEY_POT_ID) return;
@@ -102,20 +122,22 @@ function honeypotListener(message: Message, client: Client): void {
 
     // Guard cause in case the message come from a kicked user.
     if (!scammerMember) {
-        deleteMessage(authorId, message);
+        await deleteMessagesFromAuthor(authorId);
         return;
     }
 
     // Guard cause for user with the immunity role
     if (scammerMember.roles.cache.has(process.env.IMMUNITY_ROLE ?? "")) return;
 
+    await memberQueue.run(authorId, () => {
+        const kickedMember = {id: scammerMember.id, timestamp: Date.now()};
 
-    const kickedMember = {id: authorId, timestamp: Date.now()};
+        // Guard cause for when the user is already kicked
+        if (kickedMembers.map(k => k.id).some(id => id === kickedMember.id)) {
+            return;
+        }
 
-    // If the user has not been kicked already
-    if (!kickedMembers.map(k => k.id).some(id => id === authorId)) {
         kickedMembers.push(kickedMember);
-        // Kick the scammer member and delete all messages from this user from the cache
         scammerMember.kick('Tu as envoyé un message dans un channel destiné aux scams')
             .then(() => {
                 readJsonFile<KickedCounter>(KICKED_COUNTER_PATH)
@@ -132,11 +154,9 @@ function honeypotListener(message: Message, client: Client): void {
                 console.error(`Échec de l'expulsion de ${message.author.displayName}`);
                 console.error(e);
             });
-    }
-    (messagesCache.get(authorId) ?? [])
-        .forEach((msg) => {
-            deleteMessage(authorId, msg);
-        });
+    });
+
+    await deleteMessagesFromAuthor(authorId);
 }
 
 /**
