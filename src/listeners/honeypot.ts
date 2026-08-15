@@ -1,5 +1,5 @@
 import {Client, ContainerBuilder, Message, MessageFlags, Snowflake, TextBasedChannel} from 'discord.js';
-import {getChannelName, readJsonFile, writeJsonFile} from '../utils';
+import {getChannelName, readJsonFile, writeJsonFile} from '../utils/utils';
 
 interface KickedCounter {
     counter: number;
