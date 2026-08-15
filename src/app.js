@@ -16,14 +16,13 @@ const client = new Client({
 client.once(Events.ClientReady, (readyClient) => {
 	console.log(`Ready! Logged in as ${readyClient.user.tag}`);
 	readyClient.user.setActivity('Destructeur de scammeur');
-	honeypotMessageListener(readyClient);
+	honeypotMessageListener(readyClient).then(() => console.log('Message de bienvenu vérifié !'));
 });
 
 client.on(Events.MessageCreate, async (message) => {
 	await honeypotListener(message, client)
 		.catch(console.error);
-	honeypotMessageListener(client)
-		.catch(console.error);
+	await honeypotMessageListener(client);
 });
 
 client.login(process.env.TOKEN);
