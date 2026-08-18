@@ -14,7 +14,7 @@ interface KickedMember {
 const memberQueue = new OperationQueue<Snowflake>();
 
 const messagesCache = new Map<Snowflake, Message[]>();
-const kickedMembers: KickedMember[] = [];
+const kickedMembersCache: KickedMember[] = [];
 
 const CACHE_TIME_THRESHOLD = 5 * 60_000;
 
@@ -23,7 +23,7 @@ const KICKED_COUNTER_PATH = 'src/data/kickedCounter.json';
 /**
  * Function that clear messages from the cache that are older than the cache time threshold
  */
-async function clearMessages(): Promise<void> {
+async function clearOutdatedCachedMessages(): Promise<void> {
     for (const member of messagesCache.keys()) {
         await memberQueue.run(member, () => {
             const messages = messagesCache.get(member) ?? [];
@@ -35,10 +35,10 @@ async function clearMessages(): Promise<void> {
 /**
  * Function that clear KickedMembers from the cache that are older than the cache time threshold
  */
-async function clearKicked(): Promise<void> {
+async function clearOutdatedCachedKickedMember(): Promise<void> {
     await memberQueue.run(process.env.GUILD_ID ?? "", () => {
-        while (kickedMembers.length && kickedMembers[0].timestamp < CACHE_TIME_THRESHOLD) {
-            kickedMembers.shift();
+        while (kickedMembersCache.length && kickedMembersCache[0].timestamp < CACHE_TIME_THRESHOLD) {
+            kickedMembersCache.shift();
         }
     })
 }
@@ -47,7 +47,7 @@ async function clearKicked(): Promise<void> {
  * Utility function that delete the message from the messageCache
  * @param authorId {string} Id of the author
  */
-async function deleteMessagesFromAuthor(authorId: Snowflake): Promise<void> {
+async function deleteCachedMessagesFromAuthor(authorId: Snowflake): Promise<void> {
     const messages = await memberQueue.run(authorId, () => {
         const authorMessage = messagesCache.get(authorId);
         messagesCache.delete(authorId);
@@ -80,7 +80,7 @@ async function deleteMessagesFromAuthor(authorId: Snowflake): Promise<void> {
  * @param authorId {string} Id of the author
  * @param message {Message} message to add
  */
-async function addMessage(authorId: Snowflake, message: Message): Promise<void> {
+async function addMessageToCache(authorId: Snowflake, message: Message): Promise<void> {
     await memberQueue.run(authorId, () => {
         if (!messagesCache.has(authorId)) {
             messagesCache.set(authorId, []);
@@ -100,8 +100,8 @@ async function honeypotListener(message: Message, client: Client): Promise<void>
     // Guard cause for DM
     if (!message.inGuild()) return;
 
-    await clearKicked();
-    await clearMessages();
+    await clearOutdatedCachedKickedMember();
+    await clearOutdatedCachedMessages();
 
 
     const authorId = message.author.id;
@@ -109,11 +109,11 @@ async function honeypotListener(message: Message, client: Client): Promise<void>
     // Guard cause for the bot itself
     if (authorId === client.user?.id) return;
 
-    await addMessage(authorId, message);
+    await addMessageToCache(authorId, message);
 
     // If the message is coming from a member that has already been kicked, delete all the user messages stored in the cache
-    if (kickedMembers.some(kickedMember => kickedMember.id === authorId)) {
-        await deleteMessagesFromAuthor(authorId);
+    if (kickedMembersCache.some(kickedMember => kickedMember.id === authorId)) {
+        await deleteCachedMessagesFromAuthor(authorId);
     }
 
     // Guard cause for the honeypot channel
@@ -122,7 +122,7 @@ async function honeypotListener(message: Message, client: Client): Promise<void>
 
     // Guard cause in case the message come from a kicked user.
     if (!scammerMember) {
-        await deleteMessagesFromAuthor(authorId);
+        await deleteCachedMessagesFromAuthor(authorId);
         return;
     }
 
@@ -133,11 +133,11 @@ async function honeypotListener(message: Message, client: Client): Promise<void>
         const kickedMember = {id: scammerMember.id, timestamp: Date.now()};
 
         // Guard cause for when the user is already kicked
-        if (kickedMembers.map(k => k.id).some(id => id === kickedMember.id)) {
+        if (kickedMembersCache.map(k => k.id).some(id => id === kickedMember.id)) {
             return;
         }
 
-        kickedMembers.push(kickedMember);
+        kickedMembersCache.push(kickedMember);
         scammerMember.kick('Tu as envoyé un message dans un channel destiné aux scams')
             .then(() => {
                 readJsonFile<KickedCounter>(KICKED_COUNTER_PATH)
@@ -150,13 +150,13 @@ async function honeypotListener(message: Message, client: Client): Promise<void>
             })
             .catch((e: unknown) => {
                 // If the kick fails, remove the member from the kick list
-                kickedMembers.splice(kickedMembers.indexOf(kickedMember), 1);
+                kickedMembersCache.splice(kickedMembersCache.indexOf(kickedMember), 1);
                 console.error(`Échec de l'expulsion de ${message.author.displayName}`);
                 console.error(e);
             });
     });
 
-    await deleteMessagesFromAuthor(authorId);
+    await deleteCachedMessagesFromAuthor(authorId);
 }
 
 /**
