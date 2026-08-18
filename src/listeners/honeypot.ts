@@ -22,6 +22,7 @@ const KICKED_COUNTER_PATH = 'src/data/kickedCounter.json';
 
 /**
  * Function that clear messages from the cache that are older than the cache time threshold
+ * @return {Promise<void>}
  */
 async function clearOutdatedCachedMessages(): Promise<void> {
     for (const member of messagesCache.keys()) {
@@ -34,6 +35,7 @@ async function clearOutdatedCachedMessages(): Promise<void> {
 
 /**
  * Function that clear KickedMembers from the cache that are older than the cache time threshold
+ * @return {Promise<void>}
  */
 async function clearOutdatedCachedKickedMember(): Promise<void> {
     await memberQueue.run(process.env.GUILD_ID ?? "", () => {
@@ -45,7 +47,8 @@ async function clearOutdatedCachedKickedMember(): Promise<void> {
 
 /**
  * Utility function that delete the message from the messageCache
- * @param authorId {string} Id of the author
+ * @param authorId {Snowflake} Id of the author
+ * @return {Promise<void>}
  */
 async function deleteCachedMessagesFromAuthor(authorId: Snowflake): Promise<void> {
     const messages = await memberQueue.run(authorId, () => {
@@ -77,8 +80,9 @@ async function deleteCachedMessagesFromAuthor(authorId: Snowflake): Promise<void
 
 /**
  * Add a message in the message cache for the specified author
- * @param authorId {string} Id of the author
+ * @param authorId {Snowflake} Id of the author
  * @param message {Message} message to add
+ * @return {Promise<void>}
  */
 async function addMessageToCache(authorId: Snowflake, message: Message): Promise<void> {
     await memberQueue.run(authorId, () => {
@@ -94,6 +98,7 @@ async function addMessageToCache(authorId: Snowflake, message: Message): Promise
  * Listener for the honeypot functionality
  * @param message {Message} Message to be handled
  * @param client {Client} Bot
+ * @return {Promise<void>}
  */
 async function honeypotListener(message: Message, client: Client): Promise<void> {
     console.log(`Message "${message.content}" reçu dans ${getChannelName(message.channel)}`);
@@ -224,6 +229,7 @@ async function editWarningMessage(client: Client, counter: number): Promise<void
  * Listener that send the warning message if there isn't one in the honeypot channel
  *
  * @param client {Client<boolean>} The bot
+ * @return {Promise<void>}
  */
 async function honeypotMessageListener(client: Client): Promise<void> {
     const honeypotId = process.env.HONEY_POT_ID ?? "";
