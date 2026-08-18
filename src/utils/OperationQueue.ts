@@ -81,6 +81,9 @@ export default class OperationQueue<T> {
      *     users.delete("123456");
      * });
      * ```
+     *
+     * @note The Promise.resolve() is used without await to represent an already resolved Promise the first time an
+     * operation is queued. The resolved Promise then allows to skip the `await previous`
      */
     async run<R>(resource: T, operation: () => Operation<R>): Promise<R> {
         const previous = this.queue.get(resource) ?? Promise.resolve();
