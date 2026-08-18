@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { readFile, writeFile } from 'fs/promises';
+import {readFile, writeFile} from 'fs/promises';
 import {Message} from "discord.js";
 
 /**
