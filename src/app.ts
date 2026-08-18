@@ -14,7 +14,7 @@ const client = new Client({
 
 /* Client's listener definition */
 client.once(Events.ClientReady, (readyClient) => {
-    console.log(`Ready! Logged in as ${readyClient.user.tag}`);
+    console.log(`Prêt ! Connecté en tant que ${readyClient.user.tag}`);
     readyClient.user.setActivity('Destructeur de scammeur');
     honeypotMessageListener(readyClient)
         .then(() => {

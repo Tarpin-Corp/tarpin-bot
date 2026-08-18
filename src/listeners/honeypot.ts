@@ -60,7 +60,7 @@ async function deleteCachedMessagesFromAuthor(authorId: Snowflake): Promise<void
         const promisedDeletion = messages.map(async message => {
             await message.delete()
                 .then(() => {
-                    console.log('deleted message from', authorId, message.content);
+                    console.log('Message supprimé dans le channel', authorId, message.content);
                 })
                 .catch((e: unknown) => {
                     console.error(`Échec de la suppression du message: ${message.content}`)
