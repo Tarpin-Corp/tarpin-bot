@@ -49,9 +49,9 @@ async function clearOutdatedCachedKickedMember(): Promise<void> {
  */
 async function deleteCachedMessagesFromAuthor(authorId: Snowflake): Promise<void> {
     const messages = await memberQueue.run(authorId, () => {
-        const authorMessage = messagesCache.get(authorId);
+        const authorMessage: Message[] = messagesCache.get(authorId) ?? [];
         messagesCache.delete(authorId);
-        return authorMessage ?? [];
+        return authorMessage;
     });
 
     if (messages.length === 0) return;
