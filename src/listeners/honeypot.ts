@@ -179,7 +179,7 @@ function buildWarningMessage(counter: number): ContainerBuilder {
         .setAccentColor(0xff0000)
         .addTextDisplayComponents((textDisplay) => textDisplay.setContent('# Aventurier ! Plus un bruit et surtout n\'écrivez pas dans ce salon'))
         .addTextDisplayComponents((textDisplay) => textDisplay.setContent('### Ici est enfermé le *Collecteur*, un esprit tortueux capturé par le Tavernier'))
-        .addTextDisplayComponents((textDisplay) => textDisplay.setContent('### Il n\'attend qu\'un seul mot de votre part pour inscrire votre nom dans son grimoire et vous effacer à jamais de la taverne'))
+        .addTextDisplayComponents((textDisplay) => textDisplay.setContent('### Il n\'attend qu\'un seul mot de votre part pour inscrire votre nom dans son grimoire et vous effacer à jamais de la taverne \n*(En écrivant un message dans ce salon, le bot vous expulsera du serveur)*'))
         .addSeparatorComponents((separator) => separator)
         .addTextDisplayComponents((textDisplay) => textDisplay.setContent(messageCount));
 }
