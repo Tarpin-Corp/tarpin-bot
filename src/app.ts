@@ -2,6 +2,7 @@ import 'dotenv/config';
 
 import {Client, Events, GatewayIntentBits} from 'discord.js';
 import {honeypotListener, honeypotMessageListener} from './listeners/honeypot';
+import {commands} from "./commands";
 
 const client = new Client({
     intents: [
@@ -28,6 +29,15 @@ client.on(Events.MessageCreate, message => {
         .catch(console.error);
     honeypotMessageListener(client)
         .catch(console.error);
+});
+
+client.on(Events.InteractionCreate, (interaction) => {
+    if (!interaction.isChatInputCommand()) {
+        return;
+    }
+
+    const {commandName} = interaction;
+    commands[commandName as keyof typeof commands].execute(interaction).catch(console.error);
 });
 
 client
