@@ -32,12 +32,16 @@ client.on(Events.MessageCreate, message => {
 });
 
 client.on(Events.InteractionCreate, (interaction) => {
-    if (!interaction.isChatInputCommand()) {
-        return;
+    if (interaction.isChatInputCommand()) {
+        const {commandName} = interaction;
+        commands[commandName as keyof typeof commands].execute(interaction).catch(console.error);
+    } else if (interaction.isModalSubmit()) {
+        if (interaction.customId === 'testModal') {
+            interaction.reply({ content: `Your submission was received successfully! (${interaction.fields.getTextInputValue('test')})` }).catch(console.error);
+        }
     }
 
-    const {commandName} = interaction;
-    commands[commandName as keyof typeof commands].execute(interaction).catch(console.error);
+    return;
 });
 
 client
