@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import {readFile, writeFile} from 'fs/promises';
-import {Message} from "discord.js";
+import {Message, TextChannel} from "discord.js";
 
 /**
  * Function that read the JSON file from the given path in UTF-8 encoding

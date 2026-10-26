@@ -1,8 +1,9 @@
 import 'dotenv/config';
 
-import {Client, Events, GatewayIntentBits} from 'discord.js';
+import {Client, Events, ForumChannel, GatewayIntentBits, MessageFlags, TextChannel} from 'discord.js';
 import {honeypotListener, honeypotMessageListener} from './listeners/honeypot';
 import {commands} from "./commands";
+import {sendFFCMessage, createContainer} from "./utils/template-utils";
 
 const client = new Client({
     intents: [
@@ -37,7 +38,22 @@ client.on(Events.InteractionCreate, (interaction) => {
         commands[commandName as keyof typeof commands].execute(interaction).catch(console.error);
     } else if (interaction.isModalSubmit()) {
         if (interaction.customId === 'testModal') {
-            interaction.reply({ content: `Your submission was received successfully! (${interaction.fields.getTextInputValue('test')})` }).catch(console.error);
+
+            const title =  interaction.fields.getTextInputValue("date-picker-input");
+
+            // @ts-ignore
+            interaction.fields.getSelectedChannels("channel-picker-input").forEach((channel) => {
+                void sendFFCMessage(channel as ForumChannel, title);
+            })
+
+            void interaction.reply(`Post "${title}" créé !`);
+        }
+    } else if (interaction.isButton()) {
+        if (interaction.customId === 'add-gm-button') {
+            void interaction.message.edit({
+                components: [createContainer("test update")],
+                flags: MessageFlags.IsComponentsV2
+            })
         }
     }
 
