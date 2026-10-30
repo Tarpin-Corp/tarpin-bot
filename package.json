@@ -13,6 +13,7 @@
     "lint-fix": "npx eslint . --fix",
     "dev": "tsx watch src/app.ts",
     "start": "npx tsx src/app.ts",
+    "register": "npx tsx src/deploy-commands.ts",
     "build": "tsup src/app.ts --minify"
   },
   "author": "Tarpin Corp",

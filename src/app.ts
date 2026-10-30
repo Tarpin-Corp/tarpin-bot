@@ -2,6 +2,9 @@ import 'dotenv/config';
 
 import {Client, Events, GatewayIntentBits} from 'discord.js';
 import {honeypotListener, honeypotMessageListener} from './listeners/honeypot';
+import {commands} from "./commands";
+import {RpgNight} from "./model/RpgNight";
+import {buttonHandling, modalSubmitHandler} from "./events/create-event-handler";
 
 const client = new Client({
     intents: [
@@ -11,6 +14,9 @@ const client = new Client({
         GatewayIntentBits.GuildMembers,
     ],
 });
+
+//TODO use database instead of plain array
+const ttrpgEvents: RpgNight[] = [];
 
 /* Client's listener definition */
 client.once(Events.ClientReady, (readyClient) => {
@@ -28,6 +34,19 @@ client.on(Events.MessageCreate, message => {
         .catch(console.error);
     honeypotMessageListener(client)
         .catch(console.error);
+});
+
+client.on(Events.InteractionCreate, (interaction) => {
+    if (interaction.isChatInputCommand()) {
+        const {commandName} = interaction;
+        commands[commandName as keyof typeof commands].execute(interaction).catch(console.error);
+    } else if (interaction.isModalSubmit()) {
+        void modalSubmitHandler(interaction, ttrpgEvents);
+    } else if (interaction.isButton()) {
+        void buttonHandling(interaction, ttrpgEvents);
+    }
+
+    return;
 });
 
 client
