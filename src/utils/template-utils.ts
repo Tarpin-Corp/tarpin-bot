@@ -1,4 +1,5 @@
 import {ActionRowBuilder, ButtonBuilder, ButtonStyle, ContainerBuilder, ForumChannel, MessageFlags} from "discord.js";
+import {GameTableHandler} from "./GameTableHandler";
 
 const TEXT_DISPLAY_FFC: string = "# Ouverture des inscriptions pour le Club de JDR !\n" +
     "\n" +
@@ -13,29 +14,42 @@ const TEXT_DISPLAY_FFC: string = "# Ouverture des inscriptions pour le Club de J
     "\n" +
     "Pour vous inscrire:\n"
 
+const tables: GameTableHandler[] = [];
 
-export function createContainer(label: string): ContainerBuilder {
+export function createContainer(): ContainerBuilder {
     const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder()
             .setCustomId('add-gm-button')
-            .setLabel(label)
+            .setLabel("Proposez une table en tant que MJ")
             .setStyle(ButtonStyle.Primary)
     );
 
-    return new ContainerBuilder()
+    const container = new ContainerBuilder()
         .setAccentColor(0xe38454)
-        .addTextDisplayComponents((textDisplay) =>
-            textDisplay.setContent(TEXT_DISPLAY_FFC)
-        )
-        .addActionRowComponents(row)
+        .addTextDisplayComponents(text => text.setContent(TEXT_DISPLAY_FFC))
+        .addActionRowComponents(row);
+
+    for (const table of tables) {
+        table.addTo(container);
+    }
+
+    return container;
 }
 
 export async function sendFFCMessage(channel: ForumChannel, title: string) {
     await channel.threads.create({
         name: title,
         message: {
-            components: [createContainer("Proposez une table en tant que MJ avec un JDR")],
+            components: [createContainer()],
             flags: MessageFlags.IsComponentsV2
         }
     });
+}
+
+export function addTable(table: GameTableHandler): void {
+    tables.push(table);
+}
+
+export function getTable(index: number){
+    return tables[index];
 }

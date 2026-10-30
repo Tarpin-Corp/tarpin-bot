@@ -1,9 +1,10 @@
 import 'dotenv/config';
 
-import {Client, Events, ForumChannel, GatewayIntentBits, MessageFlags, TextChannel} from 'discord.js';
+import {Client, Events, ForumChannel, GatewayIntentBits} from 'discord.js';
 import {honeypotListener, honeypotMessageListener} from './listeners/honeypot';
 import {commands} from "./commands";
-import {sendFFCMessage, createContainer} from "./utils/template-utils";
+import {sendFFCMessage} from "./utils/template-utils";
+import {buttonHandling} from "./events/CreateEventHandler";
 
 const client = new Client({
     intents: [
@@ -39,7 +40,7 @@ client.on(Events.InteractionCreate, (interaction) => {
     } else if (interaction.isModalSubmit()) {
         if (interaction.customId === 'testModal') {
 
-            const title =  interaction.fields.getTextInputValue("date-picker-input");
+            const title = interaction.fields.getTextInputValue("date-picker-input");
 
             // @ts-ignore
             interaction.fields.getSelectedChannels("channel-picker-input").forEach((channel) => {
@@ -49,12 +50,7 @@ client.on(Events.InteractionCreate, (interaction) => {
             void interaction.reply(`Post "${title}" créé !`);
         }
     } else if (interaction.isButton()) {
-        if (interaction.customId === 'add-gm-button') {
-            void interaction.message.edit({
-                components: [createContainer("test update")],
-                flags: MessageFlags.IsComponentsV2
-            })
-        }
+        void buttonHandling(interaction);
     }
 
     return;
