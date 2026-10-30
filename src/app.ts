@@ -1,10 +1,10 @@
 import 'dotenv/config';
 
-import {Client, Events, ForumChannel, GatewayIntentBits} from 'discord.js';
+import {Client, Events, GatewayIntentBits} from 'discord.js';
 import {honeypotListener, honeypotMessageListener} from './listeners/honeypot';
 import {commands} from "./commands";
-import {sendFFCMessage} from "./utils/template-utils";
-import {buttonHandling} from "./events/CreateEventHandler";
+import {RpgNight} from "./model/RpgNight";
+import {buttonHandling, modalSubmitHandler} from "./events/create-event-handler";
 
 const client = new Client({
     intents: [
@@ -14,6 +14,9 @@ const client = new Client({
         GatewayIntentBits.GuildMembers,
     ],
 });
+
+//TODO use database instead of plain array
+const ttrpgEvents: RpgNight[] = [];
 
 /* Client's listener definition */
 client.once(Events.ClientReady, (readyClient) => {
@@ -38,19 +41,9 @@ client.on(Events.InteractionCreate, (interaction) => {
         const {commandName} = interaction;
         commands[commandName as keyof typeof commands].execute(interaction).catch(console.error);
     } else if (interaction.isModalSubmit()) {
-        if (interaction.customId === 'testModal') {
-
-            const title = interaction.fields.getTextInputValue("date-picker-input");
-
-            // @ts-ignore
-            interaction.fields.getSelectedChannels("channel-picker-input").forEach((channel) => {
-                void sendFFCMessage(channel as ForumChannel, title);
-            })
-
-            void interaction.reply(`Post "${title}" créé !`);
-        }
+        void modalSubmitHandler(interaction, ttrpgEvents);
     } else if (interaction.isButton()) {
-        void buttonHandling(interaction);
+        void buttonHandling(interaction, ttrpgEvents);
     }
 
     return;
